@@ -3,12 +3,13 @@ import { ArrowUpRight, BriefcaseBusiness, ChevronDown, Download, FileText, Globe
 import { buildTaskMetadata } from '@/lib/seo'
 import { CATEGORY_OPTIONS, normalizeCategory } from '@/lib/categories'
 import { fetchPaginatedTaskPosts, buildPostUrl } from '@/lib/task-data'
-import { getTaskConfig, type TaskKey } from '@/lib/site-config'
+import { getTaskConfig, SITE_CONFIG, type TaskKey } from '@/lib/site-config'
 import type { SiteFeedPagination, SitePost } from '@/lib/site-connector'
 import { taskPageMetadata } from '@/config/site.content'
 import { taskPageVoices } from '@/editable/content/task-pages.content'
 import { EditableSiteShell } from '@/editable/shell/EditableSiteShell'
 import { getTaskTheme, taskThemeStyle } from '@/editable/theme/task-themes'
+import { Ads } from '@/lib/ads'
 
 export const revalidate = 3
 
@@ -56,17 +57,33 @@ function pageHref(basePath: string, category: string, page: number) {
 }
 
 const taskGrid: Record<TaskKey, string> = {
-  article: 'grid gap-7 md:grid-cols-2 xl:grid-cols-3',
+  article: 'grid gap-6 lg:grid-cols-12',
   listing: 'grid gap-5 xl:grid-cols-2',
   classified: 'grid gap-5 sm:grid-cols-2 xl:grid-cols-3',
   image: 'columns-1 gap-5 [column-fill:_balance] sm:columns-2 xl:columns-3',
   sbm: 'grid gap-5 md:grid-cols-2 xl:grid-cols-3',
   pdf: 'grid gap-5 md:grid-cols-2 xl:grid-cols-3',
-  profile: 'grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
+  profile: 'grid gap-6 lg:grid-cols-12',
 }
 
 // Shared premium surface: hairline border, soft radius, smooth lift on hover.
 const cardBase = 'group block rounded-[var(--tk-radius)] border border-[var(--tk-line)] bg-[var(--tk-surface)] transition duration-500 hover:-translate-y-1.5 hover:shadow-[0_32px_72px_rgba(15,23,42,0.14)]'
+
+type EditableAdSlot = 'header' | 'sidebar' | 'in-feed' | 'article-bottom' | 'footer'
+
+function EditableAdBand({ slot }: { slot: EditableAdSlot }) {
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-6">
+      <Ads slot={slot} showLabel eager className="mx-auto w-full" />
+    </div>
+  )
+}
+
+function archiveAdSlots(task: TaskKey): [EditableAdSlot, EditableAdSlot] | null {
+  if (task === 'article') return ['header', 'in-feed']
+  if (task === 'profile') return ['footer', 'sidebar']
+  return null
+}
 
 export async function EditableTaskArchiveRoute({
   task,
@@ -92,6 +109,7 @@ export function TaskArchiveView({ task, posts, pagination, category, basePath }:
   const page = pagination.page || 1
   const label = taskConfig?.label || task
   const categoryLabel = category === 'all' ? 'All categories' : CATEGORY_OPTIONS.find((item) => item.slug === category)?.name || category
+  const ads = archiveAdSlots(task)
 
   return (
     <EditableSiteShell>
@@ -139,11 +157,16 @@ export function TaskArchiveView({ task, posts, pagination, category, basePath }:
           </div>
         </header>
 
+        {ads ? <EditableAdBand slot={ads[0]} /> : null}
+
         <section className="mx-auto max-w-[var(--editable-container)] px-6 py-16 sm:py-20 lg:px-8">
           {posts.length ? (
-            <div className={taskGrid[task]}>
-              {posts.map((post, index) => <ArchivePostCard key={post.id || post.slug} post={post} task={task} basePath={basePath} index={index} />)}
-            </div>
+            <>
+              <div className={taskGrid[task]}>
+                {posts.map((post, index) => <ArchivePostCard key={post.id || post.slug} post={post} task={task} basePath={basePath} index={index} />)}
+              </div>
+              {ads ? <EditableAdBand slot={ads[1]} /> : null}
+            </>
           ) : (
             <div className="mx-auto max-w-xl rounded-[var(--tk-radius)] border border-dashed border-[var(--tk-line)] bg-[var(--tk-surface)] px-8 py-16 text-center">
               <Search className="mx-auto h-7 w-7 text-[var(--tk-muted)]" />
@@ -172,7 +195,7 @@ function ArchivePostCard({ post, task, basePath, index }: { post: SitePost; task
   if (task === 'image') return <ImageArchiveCard post={post} href={href} index={index} />
   if (task === 'sbm') return <BookmarkArchiveCard post={post} href={href} index={index} />
   if (task === 'pdf') return <PdfArchiveCard post={post} href={href} />
-  if (task === 'profile') return <ProfileArchiveCard post={post} href={href} />
+  if (task === 'profile') return <ProfileArchiveCard post={post} href={href} index={index} />
   return <ArticleArchiveCard post={post} href={href} index={index} />
 }
 
@@ -222,21 +245,42 @@ function RatingLine({ post, center = false }: { post: SitePost; center?: boolean
 function ArticleArchiveCard({ post, href, index }: { post: SitePost; href: string; index: number }) {
   const image = getImage(post)
   const category = getCategory(post, 'Article')
+  const feature = index === 0
+  const sideFeature = index === 1 || index === 2
+  const horizontal = index > 2 && index % 4 === 0
   return (
-    <Link href={href} className={`${cardBase} overflow-hidden`}>
-      <div className="aspect-[16/10] overflow-hidden bg-[var(--tk-raised)]">
-        <img src={image} alt="" className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]" />
+    <Link
+      href={href}
+      className={`group overflow-hidden rounded-[1.35rem] border border-[var(--tk-line)] bg-[var(--tk-surface)] shadow-[0_14px_34px_rgba(7,17,38,0.08)] transition duration-500 hover:-translate-y-1.5 hover:shadow-[0_28px_56px_rgba(7,17,38,0.14)] ${
+        feature ? 'lg:col-span-7 lg:row-span-2' : sideFeature ? 'lg:col-span-5' : horizontal ? 'lg:col-span-8 lg:grid lg:grid-cols-[260px_minmax(0,1fr)]' : 'lg:col-span-4'
+      }`}
+    >
+      <div className={`${feature ? 'relative min-h-[520px]' : horizontal ? 'aspect-[16/10] lg:aspect-auto lg:h-full' : 'aspect-[16/10]'} overflow-hidden bg-[var(--tk-raised)]`}>
+        <img src={image} alt="" className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.05]" />
+        {feature ? <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,17,38,0.05)_20%,rgba(7,17,38,0.92))]" /> : null}
+        {feature ? (
+          <div className="absolute inset-x-0 bottom-0 p-7 sm:p-9">
+            <span className="rounded-full bg-[var(--tk-accent)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-white">{category}</span>
+            <h2 className="editable-display mt-4 text-4xl font-black leading-tight tracking-[-0.05em] text-white sm:text-5xl">{post.title}</h2>
+            <p className="mt-4 line-clamp-3 max-w-3xl text-[15px] leading-7 text-white/78">{getSummary(post) || 'Read the full post for details, context, and useful perspective.'}</p>
+          </div>
+        ) : null}
       </div>
-      <div className="p-6 sm:p-7">
-        <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.22em] text-[var(--tk-accent)]">
-          <span>{category}</span>
-          <span className="text-[var(--tk-muted)]">· No. {String(index + 1).padStart(2, '0')}</span>
+      {!feature ? (
+        <div className={`${sideFeature ? 'p-7 sm:p-8' : 'p-6'}`}>
+          <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--tk-accent)]">
+            <span className="rounded-full bg-[var(--tk-accent-soft)] px-3 py-1">{category}</span>
+            <span className="text-[var(--tk-muted)]">No. {String(index + 1).padStart(2, '0')}</span>
+          </div>
+          <h2 className={`editable-display mt-4 font-black leading-tight tracking-[-0.04em] ${sideFeature ? 'text-3xl sm:text-4xl' : 'text-2xl'}`}>{post.title}</h2>
+          <p className="mt-4 line-clamp-3 text-[15px] leading-7 text-[var(--tk-muted)]">{getSummary(post) || 'Read the full post for details, context, and useful perspective.'}</p>
+          <span className="mt-6 inline-flex items-center gap-3 text-sm font-semibold text-[var(--tk-muted)]">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--tk-accent)] text-xs font-black text-white">{String(post.title || 'A')[0]}</span>
+            <span>Read article</span>
+            <ArrowUpRight className="h-4 w-4 text-[var(--tk-accent)] transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          </span>
         </div>
-        <h2 className="editable-display mt-3 text-2xl font-semibold leading-snug tracking-[-0.02em]">{post.title}</h2>
-        <RatingLine post={post} />
-        <p className="mt-3 line-clamp-2 text-[15px] leading-7 text-[var(--tk-muted)]">{getSummary(post)}</p>
-        <CardArrow label="Read article" />
-      </div>
+      ) : null}
     </Link>
   )
 }
@@ -336,18 +380,24 @@ function PdfArchiveCard({ post, href }: { post: SitePost; href: string }) {
   )
 }
 
-function ProfileArchiveCard({ post, href }: { post: SitePost; href: string }) {
+function ProfileArchiveCard({ post, href, index }: { post: SitePost; href: string; index: number }) {
   const avatar = getImages(post)[0]
   const role = getField(post, ['role', 'designation', 'company', 'location'])
+  const wide = index === 0 || index % 7 === 0
   return (
-    <Link href={href} className={`${cardBase} flex flex-col items-center p-7 text-center`}>
-      <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-[var(--tk-line)] bg-[var(--tk-raised)]">
+    <Link href={href} className={`group overflow-hidden rounded-[1.35rem] border border-[var(--tk-line)] bg-white shadow-[0_14px_38px_rgba(7,17,38,0.08)] transition duration-500 hover:-translate-y-1.5 hover:shadow-[0_28px_56px_rgba(7,17,38,0.14)] ${wide ? 'lg:col-span-6 lg:grid lg:grid-cols-[190px_minmax(0,1fr)]' : 'lg:col-span-3'}`}>
+      <div className={`flex items-center justify-center bg-[linear-gradient(180deg,#eef6ff_0%,#ffffff_100%)] ${wide ? 'p-8' : 'p-8 pb-4'}`}>
+        <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[var(--tk-raised)] shadow-[0_12px_28px_rgba(7,17,38,0.16)]">
         {avatar ? <img src={avatar} alt="" className="h-full w-full object-cover" /> : <UserRound className="h-10 w-10 text-[var(--tk-muted)]" />}
+        </div>
       </div>
-      <h2 className="editable-display mt-5 text-lg font-semibold tracking-[-0.02em]">{post.title}</h2>
-      {role ? <p className="mt-1.5 text-xs font-medium uppercase tracking-[0.16em] text-[var(--tk-accent)]">{role}</p> : null}
-      <RatingLine post={post} center />
-      <p className="mt-3 line-clamp-2 text-sm leading-6 text-[var(--tk-muted)]">{getSummary(post)}</p>
+      <div className={`${wide ? 'p-8 text-left' : 'px-8 pb-8 text-center'}`}>
+        <span className="rounded-full bg-[var(--tk-accent-soft)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--tk-accent)]">Profile</span>
+        <h2 className="editable-display mt-4 text-2xl font-black leading-tight tracking-[-0.04em]">{post.title}</h2>
+        {role ? <p className="mt-3 line-clamp-2 text-sm leading-6 text-[var(--tk-muted)]">{role}</p> : null}
+        <p className="mt-3 line-clamp-2 text-sm leading-6 text-[var(--tk-muted)]">{getSummary(post)}</p>
+        <span className="mt-5 inline-flex rounded-full border border-[var(--tk-accent)] px-5 py-2 text-sm font-bold text-[var(--tk-accent)] transition group-hover:bg-[var(--tk-accent)] group-hover:text-white">View Profile</span>
+      </div>
     </Link>
   )
 }
