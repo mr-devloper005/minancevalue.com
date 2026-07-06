@@ -8,6 +8,7 @@ import type { SitePost } from '@/lib/site-connector'
 import { EditableSiteShell } from '@/editable/shell/EditableSiteShell'
 import { EditableArticleComments } from '@/editable/components/EditableArticleComments'
 import { getTaskTheme, taskThemeStyle } from '@/editable/theme/task-themes'
+import { Ads } from '@/lib/ads'
 
 export const revalidate = 3
 
@@ -113,6 +114,16 @@ const mapSrcFor = (post: SitePost) => {
   return ''
 }
 
+type EditableAdSlot = 'header' | 'sidebar' | 'in-feed' | 'article-bottom' | 'footer'
+
+function EditableAdBand({ slot }: { slot: EditableAdSlot }) {
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-6">
+      <Ads slot={slot} showLabel eager className="mx-auto w-full" />
+    </div>
+  )
+}
+
 export function TaskDetailView({ task, post, related, comments = [] }: { task: TaskKey; post: SitePost; related: SitePost[]; comments?: Array<{ id: string; name: string; comment: string; createdAt: string }> }) {
   return (
     <EditableSiteShell>
@@ -192,18 +203,67 @@ function BackLink({ task }: { task: TaskKey }) {
 // ----- Article: a quiet, centred reading column -----
 function ArticleDetail({ post, related, comments }: { post: SitePost; related: SitePost[]; comments: Array<{ id: string; name: string; comment: string; createdAt: string }> }) {
   const images = getImages(post)
+  const cover = images[0]
+  const category = categoryOf(post, 'Article')
   return (
     <>
-      <article className="mx-auto max-w-4xl px-6 py-14 sm:py-20">
-        <BackLink task="article" />
-        <p className="mt-10 text-xs font-medium uppercase tracking-[0.28em] text-[var(--tk-accent)]">{categoryOf(post, 'Article')}</p>
-        <h1 className="editable-display mt-5 text-balance text-4xl font-semibold leading-[1.06] tracking-[-0.03em] sm:text-5xl lg:text-[3.4rem]">{post.title}</h1>
-        <div className="mt-6 text-sm text-[var(--tk-muted)]">
-          <span>{SITE_CONFIG.name}</span>
+      <article>
+        <header className="relative overflow-hidden bg-[var(--tk-bg)]">
+          {cover ? (
+            <>
+              <img src={cover} alt="" className="absolute inset-0 h-full w-full object-cover opacity-10" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(69,100,244,0.16),transparent_32rem),linear-gradient(180deg,rgba(251,252,255,0.88),#fbfcff_85%)]" />
+            </>
+          ) : null}
+          <div className="relative mx-auto max-w-[var(--editable-container)] px-6 py-14 sm:py-20 lg:px-8">
+            <BackLink task="article" />
+            <div className="mt-10 grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+              <div className="rounded-[2rem] border border-[var(--tk-line)] bg-white p-7 shadow-[0_22px_55px_rgba(7,17,38,0.12)] sm:p-10">
+                <span className="inline-flex rounded-full bg-[var(--tk-accent-soft)] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[var(--tk-accent)]">{category}</span>
+                <h1 className="editable-display mt-6 text-balance text-4xl font-black leading-[1.03] tracking-[-0.06em] sm:text-6xl">{post.title}</h1>
+                {leadText(post) ? <p className="mt-6 max-w-3xl text-lg leading-8 text-[var(--tk-muted)]">{leadText(post)}</p> : null}
+                <div className="mt-7 flex flex-wrap items-center gap-4 text-sm text-[var(--tk-muted)]">
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--tk-accent)] font-black text-white">{String(post.title || 'A')[0]}</span>
+                  <span className="font-semibold text-[var(--tk-text)]">{SITE_CONFIG.name}</span>
+                  <span className="h-1 w-1 rounded-full bg-[var(--tk-muted)] opacity-50" />
+                  <span>Community article</span>
+                </div>
+              </div>
+              <div className="relative rounded-[2rem] border border-[var(--tk-line)] bg-[var(--tk-surface)] p-4 shadow-[0_24px_58px_rgba(7,17,38,0.14)]">
+                {cover ? (
+                  <img src={cover} alt="" className="aspect-[16/11] w-full rounded-[1.5rem] object-cover" />
+                ) : (
+                  <div className="flex aspect-[16/11] w-full items-center justify-center rounded-[1.5rem] bg-[var(--tk-raised)]">
+                    <FileText className="h-10 w-10 text-[var(--tk-muted)]" />
+                  </div>
+                )}
+                <span className="absolute -bottom-4 right-8 rounded-full bg-[var(--tk-accent)] px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(69,100,244,0.22)]">Featured Read</span>
+              </div>
+            </div>
+          </div>
+        </header>
+        <EditableAdBand slot="header" />
+        <div className="mx-auto grid max-w-[var(--editable-container)] gap-10 px-6 py-14 sm:py-20 lg:grid-cols-[280px_minmax(0,760px)_280px] lg:px-8">
+          <aside className="hidden lg:block">
+            <div className="sticky top-28 rounded-2xl border border-[var(--tk-line)] bg-[var(--tk-surface)] p-6">
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--tk-accent)]">Article</p>
+              <p className="mt-3 text-sm leading-7 text-[var(--tk-muted)]">A focused reading page with the content kept front and center.</p>
+            </div>
+          </aside>
+          <div className="min-w-0 rounded-[2rem] border border-[var(--tk-line)] bg-white p-6 shadow-[0_18px_44px_rgba(7,17,38,0.08)] sm:p-10">
+            <BodyContent post={post} />
+            <EditableArticleComments slug={post.slug} comments={comments} />
+            <EditableAdBand slot="article-bottom" />
+          </div>
+          <aside className="space-y-5 lg:sticky lg:top-28 lg:self-start">
+            <div className="rounded-2xl border border-[var(--tk-line)] bg-[var(--tk-surface)] p-6 shadow-[0_14px_34px_rgba(7,17,38,0.08)]">
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--tk-accent)]">In this article</p>
+              <p className="mt-3 text-sm leading-7 text-[var(--tk-muted)]">A readable post from the {SITE_CONFIG.name} community, kept simple and safe for any article data shape.</p>
+              <Link href="/create" className="mt-5 inline-flex rounded-full bg-[var(--tk-accent)] px-5 py-2.5 text-sm font-bold text-white">Start writing</Link>
+            </div>
+            <RelatedPanel task="article" post={post} related={related.slice(0, 3)} />
+          </aside>
         </div>
-        {images[0] ? <img src={images[0]} alt="" className="mt-10 aspect-[16/9] w-full rounded-[var(--tk-radius)] border border-[var(--tk-line)] object-cover" /> : null}
-        <BodyContent post={post} />
-        <EditableArticleComments slug={post.slug} comments={comments} />
       </article>
       <RelatedStrip task="article" related={related} />
     </>
@@ -391,25 +451,39 @@ function ProfileDetail({ post, related }: { post: SitePost; related: SitePost[] 
   const email = getField(post, ['email'])
   return (
     <>
-      <section className="mx-auto max-w-[var(--editable-container)] px-6 py-14 sm:py-20 lg:px-8">
-        <BackLink task="profile" />
-        <div className="mt-8 grid gap-10 lg:grid-cols-[360px_minmax(0,1fr)]">
-          <aside className="lg:sticky lg:top-24 lg:self-start">
-            <div className="rounded-[var(--tk-radius)] border border-[var(--tk-line)] bg-[var(--tk-surface)] p-8 text-center shadow-[0_22px_60px_rgba(15,23,42,0.08)]">
-              <div className="mx-auto flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border border-[var(--tk-line)] bg-[var(--tk-raised)]">
-                {images[0] ? <img src={images[0]} alt="" className="h-full w-full object-cover" /> : <UserRound className="h-14 w-14 text-[var(--tk-muted)]" />}
+      <EditableAdBand slot="in-feed" />
+      <section className="relative overflow-hidden bg-[var(--tk-bg)]">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[linear-gradient(135deg,rgba(69,100,244,0.16),rgba(141,23,230,0.12),transparent)]" />
+        <div className="mx-auto max-w-[var(--editable-container)] px-6 py-14 sm:py-20 lg:px-8">
+          <BackLink task="profile" />
+          <div className="relative mt-10 overflow-hidden rounded-[2rem] border border-[var(--tk-line)] bg-white shadow-[0_26px_70px_rgba(7,17,38,0.13)]">
+            <div className="h-36 bg-[linear-gradient(135deg,var(--tk-accent),#8d17e6)]" />
+            <div className="grid gap-8 px-6 pb-8 sm:px-10 lg:grid-cols-[260px_minmax(0,1fr)] lg:items-end">
+              <div className="-mt-20">
+                <div className="flex h-40 w-40 items-center justify-center overflow-hidden rounded-full border-8 border-white bg-[var(--tk-raised)] shadow-[0_18px_38px_rgba(7,17,38,0.2)]">
+                  {images[0] ? <img src={images[0]} alt="" className="h-full w-full object-cover" /> : <UserRound className="h-16 w-16 text-[var(--tk-muted)]" />}
+                </div>
               </div>
-              <h1 className="editable-display mt-6 text-2xl font-semibold tracking-[-0.02em]">{post.title}</h1>
-              {role ? <p className="mt-2 text-xs font-medium uppercase tracking-[0.16em] text-[var(--tk-accent)]">{role}</p> : null}
-              <DetailMeta post={post} center />
-              <ContactAction website={website} email={email} bare />
+              <div className="pb-2">
+                <span className="inline-flex rounded-full bg-[var(--tk-accent-soft)] px-4 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-[var(--tk-accent)]">Contributor profile</span>
+                <h1 className="editable-display mt-4 text-4xl font-black leading-tight tracking-[-0.06em] sm:text-6xl">{post.title}</h1>
+                {role ? <p className="mt-4 max-w-3xl text-lg leading-8 text-[var(--tk-muted)]">{role}</p> : null}
+                <ContactAction website={website} email={email} bare />
+              </div>
             </div>
-          </aside>
-          <article className="min-w-0">
-            <Kicker task="profile">Profile</Kicker>
-            <BodyContent post={post} />
-            <ImageStrip images={images.slice(1)} label="Gallery" />
-          </article>
+          </div>
+
+          <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <article className="min-w-0 rounded-[2rem] border border-[var(--tk-line)] bg-[var(--tk-surface)] p-6 shadow-[0_18px_44px_rgba(7,17,38,0.08)] sm:p-10">
+              <Kicker task="profile">Profile story</Kicker>
+              <h2 className="editable-display mt-4 text-3xl font-black tracking-[-0.04em] sm:text-5xl">Overview</h2>
+              <BodyContent post={post} />
+            </article>
+            <aside className="rounded-[2rem] border border-[var(--tk-line)] bg-white p-6 shadow-[0_18px_44px_rgba(7,17,38,0.08)]">
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--tk-accent)]">Profile gallery</p>
+              <ImageStrip images={images.slice(1)} label="Images" />
+            </aside>
+          </div>
         </div>
       </section>
       <RelatedStrip task="profile" related={related} />
@@ -567,4 +641,3 @@ function RelatedCard({ task, post, grid = false }: { task: TaskKey; post: SitePo
     </Link>
   )
 }
-
