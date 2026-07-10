@@ -71,18 +71,12 @@ const cardBase = 'group block rounded-[var(--tk-radius)] border border-[var(--tk
 
 type EditableAdSlot = 'header' | 'sidebar' | 'in-feed' | 'article-bottom' | 'footer'
 
-function EditableAdBand({ slot }: { slot: EditableAdSlot }) {
+function EditableAdBand({ slot, size }: { slot: EditableAdSlot; size?: string }) {
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
-      <Ads slot={slot} showLabel eager className="mx-auto w-full" />
+      <Ads slot={slot} size={size} showLabel eager className="mx-auto w-full" />
     </div>
   )
-}
-
-function archiveAdSlots(task: TaskKey): [EditableAdSlot, EditableAdSlot] | null {
-  if (task === 'article') return ['header', 'in-feed']
-  if (task === 'profile') return ['footer', 'sidebar']
-  return null
 }
 
 export async function EditableTaskArchiveRoute({
@@ -109,8 +103,6 @@ export function TaskArchiveView({ task, posts, pagination, category, basePath }:
   const page = pagination.page || 1
   const label = taskConfig?.label || task
   const categoryLabel = category === 'all' ? 'All categories' : CATEGORY_OPTIONS.find((item) => item.slug === category)?.name || category
-  const ads = archiveAdSlots(task)
-
   return (
     <EditableSiteShell>
       <main style={taskThemeStyle(task)} className="min-h-screen bg-[var(--tk-bg)] text-[var(--tk-text)]">
@@ -157,7 +149,8 @@ export function TaskArchiveView({ task, posts, pagination, category, basePath }:
           </div>
         </header>
 
-        {ads ? <EditableAdBand slot={ads[0]} /> : null}
+        {task === 'article' ? <EditableAdBand slot="in-feed" size="banner" /> : null}
+        {task === 'profile' ? <EditableAdBand slot="sidebar" /> : null}
 
         <section className="mx-auto max-w-[var(--editable-container)] px-6 py-16 sm:py-20 lg:px-8">
           {posts.length ? (
@@ -165,7 +158,6 @@ export function TaskArchiveView({ task, posts, pagination, category, basePath }:
               <div className={taskGrid[task]}>
                 {posts.map((post, index) => <ArchivePostCard key={post.id || post.slug} post={post} task={task} basePath={basePath} index={index} />)}
               </div>
-              {ads ? <EditableAdBand slot={ads[1]} /> : null}
             </>
           ) : (
             <div className="mx-auto max-w-xl rounded-[var(--tk-radius)] border border-dashed border-[var(--tk-line)] bg-[var(--tk-surface)] px-8 py-16 text-center">
